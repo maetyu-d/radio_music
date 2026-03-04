@@ -39,5 +39,5 @@ If you want to run from Finder, open:
 
 ## Notes
 - Internet radio compatibility depends on stream codec support in your JUCE build.
-- Included station URLs are public examples and may change over time.
+- Included station URLs are currently public examples and may change over time.
 - Crossfades are block-accurate and the next station is preloaded on the inactive deck.
