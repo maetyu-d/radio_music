@@ -1,5 +1,7 @@
 # Radio Music
 
+![](https://github.com/maetyu-d/radio_music/blob/main/Screenshot%202026-03-04%20at%2021.36.23.png)
+
 A JUCE instrument plugin that:
 - picks internet radio streams from a built-in station list,
 - continuously preloads and randomly switches between stations,
