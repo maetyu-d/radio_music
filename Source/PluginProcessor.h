@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_core/juce_core.h>
 
@@ -90,6 +91,9 @@ private:
     void handleVlcSamples (const void* samples, int frameCount);
     bool ensureVlcInitialized();
     void shutdownVlc();
+    void startCapture();
+    void stopCapture();
+    bool isHostRecording() const;
 
     juce::AudioProcessorValueTreeState parameters;
 
@@ -151,6 +155,11 @@ private:
     std::array<std::atomic<float>, meterStationCount> stationMeterLevels {};
 
     juce::Random random;
+
+    juce::CriticalSection captureLock;
+    juce::TimeSliceThread captureThread { "RadioMusicCapture" };
+    std::unique_ptr<juce::AudioFormatWriter::ThreadedWriter> captureWriter;
+    juce::File currentCaptureFile;
 
     const std::array<Station, meterStationCount> stations
     {{

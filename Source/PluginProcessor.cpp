@@ -13,6 +13,7 @@ RandomRadioFXAudioProcessor::RandomRadioFXAudioProcessor()
     audioRing.resize (static_cast<size_t> (audioFifo.getTotalSize() * 2), 0.0f);
     connectionStatus = "Ready (waiting for playback start)";
 
+    captureThread.startThread();
     startThread();
 }
 
@@ -21,6 +22,8 @@ RandomRadioFXAudioProcessor::~RandomRadioFXAudioProcessor()
     signalThreadShouldExit();
     requestWake.signal();
     stopThread (3000);
+    stopCapture();
+    captureThread.stopThread (2000);
     shutdownVlc();
 }
 
@@ -296,6 +299,54 @@ void RandomRadioFXAudioProcessor::shutdownVlc()
     }
 }
 
+void RandomRadioFXAudioProcessor::startCapture()
+{
+    if (captureWriter != nullptr || currentSampleRate <= 0.0)
+        return;
+
+    auto dir = juce::File::getSpecialLocation (juce::File::userMusicDirectory)
+                    .getChildFile ("Radio Music Captures");
+    dir.createDirectory();
+
+    const auto fileName = "RadioMusic-" + juce::Time::getCurrentTime().formatted ("%Y%m%d-%H%M%S") + ".wav";
+    currentCaptureFile = dir.getChildFile (fileName);
+
+    std::unique_ptr<juce::FileOutputStream> stream (currentCaptureFile.createOutputStream());
+    if (stream == nullptr)
+        return;
+
+    juce::WavAudioFormat wav;
+    auto* writer = wav.createWriterFor (stream.release(),
+                                        currentSampleRate,
+                                        2,
+                                        24,
+                                        {},
+                                        0);
+    if (writer == nullptr)
+        return;
+
+    const juce::ScopedLock lock (captureLock);
+    captureWriter = std::make_unique<juce::AudioFormatWriter::ThreadedWriter> (writer, captureThread, 32768);
+}
+
+void RandomRadioFXAudioProcessor::stopCapture()
+{
+    const juce::ScopedLock lock (captureLock);
+    captureWriter.reset();
+}
+
+bool RandomRadioFXAudioProcessor::isHostRecording() const
+{
+    if (auto* playHead = getPlayHead(); playHead != nullptr)
+    {
+        juce::AudioPlayHead::CurrentPositionInfo pos;
+        if (playHead->getCurrentPosition (pos))
+            return pos.isRecording;
+    }
+
+    return false;
+}
+
 void RandomRadioFXAudioProcessor::vlcPlayCallback (void* data, const void* samples, unsigned int count, int64_t)
 {
     if (data == nullptr || samples == nullptr || count == 0)
@@ -534,6 +585,12 @@ void RandomRadioFXAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 {
     juce::ScopedNoDenormals noDenormals;
 
+    const auto captureEnabled = parameters.getRawParameterValue ("captureOnRecord")->load() > 0.5f;
+    if (captureEnabled && isHostRecording())
+        startCapture();
+    else
+        stopCapture();
+
     switchIntervalSamples = static_cast<int64_t> (currentSampleRate * parameters.getRawParameterValue ("switchSec")->load());
     const auto liveInMix = juce::jlimit (0.0f, 1.0f, parameters.getRawParameterValue ("liveInMix")->load());
     const bool useLiveOnly = liveInMix > 0.0001f;
@@ -656,6 +713,12 @@ void RandomRadioFXAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         const auto src = juce::jmin (ch, 1);
         buffer.copyFrom (ch, 0, workingBuffer, src, 0, samples);
     }
+
+    {
+        const juce::ScopedLock lock (captureLock);
+        if (captureWriter != nullptr)
+            captureWriter->write (buffer.getArrayOfReadPointers(), samples);
+    }
 }
 
 bool RandomRadioFXAudioProcessor::hasEditor() const { return true; }
@@ -696,6 +759,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout RandomRadioFXAudioProcessor:
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("microMix", "Micro Loop Mix", juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("microMs", "Micro Loop Length (ms)", juce::NormalisableRange<float> (1.0f, 90.0f, 0.1f), 5.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("softCrush", "Soft Crush", juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterBool> ("captureOnRecord", "Capture Rec", false));
 
     return { params.begin(), params.end() };
 }

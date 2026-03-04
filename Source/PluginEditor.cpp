@@ -36,7 +36,7 @@ void RandomRadioFXAudioProcessorEditor::StationMeter::paint (juce::Graphics& g)
 RandomRadioFXAudioProcessorEditor::RandomRadioFXAudioProcessorEditor (RandomRadioFXAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    const std::array<std::pair<const char*, const char*>, 12> controls
+    const std::array<std::pair<const char*, const char*>, 13> controls
     {{
         { "switchSec", "Switch (s)" },
         { "crossfadeMs", "Crossfade (ms)" },
@@ -49,7 +49,8 @@ RandomRadioFXAudioProcessorEditor::RandomRadioFXAudioProcessorEditor (RandomRadi
         { "grainDensity", "Grain Density" },
         { "microMix", "Micro Mix" },
         { "microMs", "Micro Length" },
-        { "softCrush", "Soft Crush" }
+        { "softCrush", "Soft Crush" },
+        { "captureOnRecord", "Capture Rec" }
     }};
 
     sliders.ensureStorageAllocated (static_cast<int> (controls.size()));
