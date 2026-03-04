@@ -1,10 +1,10 @@
-# Radio Music (JUCE)
+# Radio Music
 
 A JUCE instrument plugin that:
 - picks internet radio streams from a built-in station list,
-- continuously preloads and random-switches between stations,
-- crossfades between streams without intentional gaps,
-- applies stutter, granular, and micro-loop effects.
+- continuously preloads and randomly switches between stations,
+- can crossfade between streams without intentional gaps,
+- applies stutter, granular, micro-loop, and or wild resampling effects.
 
 ## Build
 
